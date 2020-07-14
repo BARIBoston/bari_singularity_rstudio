@@ -1,47 +1,66 @@
-# NOTE: CentOS 8 is the version used on Discovery, but there are some package
-# conflicts when trying to install the spatial libraries. i have included the
-# code to build with CentOS 8, for when those conflicts get resolved. -ercas
+# NOTES: 
+# * GDAL is not yet available in EPEL 8
+# * the GDAL library in CentOS 7 is too old for newer versions of sf
+# so: let's try with f32
 
-Bootstrap: yum
-OSVersion: 7
-MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/$basearch/
+Bootstrap: docker
+From: fedora:32
+
+#Bootstrap: yum
+#OSVersion: 7
+#MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/$basearch/
 #OSVersion: 8
 #MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/BaseOS/$basearch/os/
-Include: yum
+#Include: yum
 
 %labels
-  Maintainer ercas
+    Maintainer ercas
 
 %help
-this image will run RStudio with spatial libraries installed
+this image will run RStudio with spatial libraries and R packages installed
 
 %post
-  export RSTUDIO_RPM=rstudio-server-rhel-1.3.959-x86_64.rpm
+    export R_LIBRARY=/usr/lib64/R/library # path of the global R library
+    export RSTUDIO_RPM=rstudio-server-rhel-1.3.959-x86_64.rpm # RStudio version to use
+    export MAKEFLAGS=-j20 # for compiling R packages with multithreading
 
-  echo "installing basic utilities"
-  yum -y install wget
+    echo "updating yum repo and installing basic utilities"
+    yum -y update
+    yum -y install wget
 
-  echo "installing devtools"
-  yum -y groupinstall "Development Tools"
+    echo "installing devtools"
+    yum -y groupinstall "Development Tools"
 
-  #echo "installing EPEL repository"
-  # CentOS 8 (package conflicts)
-  #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-  echo "installing EPEL repository"
-  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    #echo "installing EPEL repository"
+    #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+    #yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
-  echo "installing spatial libraries"
-  yum -y install gdal gdal-devel proj proj-devel geos geos-devel
+    echo "installing spatial libraries and development headers"
+    # note on installing sf in f32: the configure script incorrectly marks
+    # missing sqlite development headers (sqlite-devel, introduced in f32) as
+    # missing proj. see the discussion here:
+    # https://github.com/r-spatial/sf/issues/1369#issuecomment-623003944
+    yum -y install {gdal,geos,libspatialite,proj,sqlite}{,-devel} #proj{-epsg,-nad}
 
-  echo "installing rstudio"
-  # CentOS 8
-  #wget https://download2.rstudio.org/server/centos8/x86_64/${RSTUDIO_RPM}
-  # CentOS 7
-  wget https://download2.rstudio.org/server/centos6/x86_64/${RSTUDIO_RPM}
-  yum -y install ${RSTUDIO_RPM}
-  rm -v ${RSTUDIO_RPM}
+    echo "installing other libraries and development headers"
+    yum -y install {openssl,udunits2}{,-devel}
 
-  echo "installing R"
-  yum -y install R
+    echo "installing R and R development headers"
+    yum -y install R-core{,-devel}
 
-  echo "installing R packages"
+    echo "installing binary RPMs for certain R packages"
+    # we install these in hopes that they will bring in any remaining files
+    # that we might need, as well as set up the global site-packages folder
+    yum -y install {R-Rcpp,R-sp}{,-devel}
+
+    #echo "installing rstudio"
+    #wget https://download2.rstudio.org/server/centos8/x86_64/${RSTUDIO_RPM} # CentOS 8
+    #wget https://download2.rstudio.org/server/centos6/x86_64/${RSTUDIO_RPM} # CentOS 7 (not 6)
+    #yum -y install ${RSTUDIO_RPM}
+    #rm -v ${RSTUDIO_RPM}
+
+    echo "installing R packages"
+    for package_name in sf; do
+        Rscript -e "install.packages('${package_name}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
+    done
+
