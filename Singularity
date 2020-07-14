@@ -17,12 +17,23 @@ From: fedora:32
     Maintainer ercas
 
 %help
-this image will run RStudio with spatial libraries and R packages installed
+    this image will run RStudio with spatial libraries and R packages installed
+
+%environment
+    export R_LIBRARY=/usr/lib64/R/library # path of the global R library
 
 %post
     export R_LIBRARY=/usr/lib64/R/library # path of the global R library
     export RSTUDIO_RPM=rstudio-server-rhel-1.3.959-x86_64.rpm # RStudio version to use
     export MAKEFLAGS=-j20 # for compiling R packages with multithreading
+
+    # list of packages to install
+    export PACKAGES=(
+	bit64 corrplot data.table gganimate here Hmisc leaflet lme4 magicfor
+	markovchain plotly questionr RColorBrewer readxl RSQLite scales sf
+	SnowballC stargazer tidytext tidyverse tm viridis wordcloud wrapr
+        writexl
+    )
 
     echo "updating yum repo and installing basic utilities"
     yum -y update
@@ -40,10 +51,17 @@ this image will run RStudio with spatial libraries and R packages installed
     # missing sqlite development headers (sqlite-devel, introduced in f32) as
     # missing proj. see the discussion here:
     # https://github.com/r-spatial/sf/issues/1369#issuecomment-623003944
-    yum -y install {gdal,geos,libspatialite,proj,sqlite}{,-devel} #proj{-epsg,-nad}
+    yum -y install {gdal,geos,libspatialite,proj,sqlite}{,-devel} proj-static proj-datumgrid-*
 
     echo "installing other libraries and development headers"
-    yum -y install {openssl,udunits2}{,-devel}
+    # dependencies:
+    # * openssl <- tidyverse
+    # * udunits2 <- sf
+    # * libjpeg-turbo <- latticeExtra <- Hmisc
+    # * libcurl <- httr <- tigris, plotly
+    # * libxml2 <- xml2 <- tm
+    # * cairo <- gdtools <- hrbrthemes, mapview
+    yum -y install {openssl,udunits2,libjpeg-turbo,libcurl,libxml2,cairo}{,-devel}
 
     echo "installing R and R development headers"
     yum -y install R-core{,-devel}
@@ -51,7 +69,7 @@ this image will run RStudio with spatial libraries and R packages installed
     echo "installing binary RPMs for certain R packages"
     # we install these in hopes that they will bring in any remaining files
     # that we might need, as well as set up the global site-packages folder
-    yum -y install {R-Rcpp,R-sp}{,-devel}
+    yum -y install {R-Rcpp,R-sp}{,-devel} R-rmarkdown
 
     #echo "installing rstudio"
     #wget https://download2.rstudio.org/server/centos8/x86_64/${RSTUDIO_RPM} # CentOS 8
@@ -60,7 +78,7 @@ this image will run RStudio with spatial libraries and R packages installed
     #rm -v ${RSTUDIO_RPM}
 
     echo "installing R packages"
-    for package_name in sf; do
-        Rscript -e "install.packages('${package_name}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
+    for package in ${PACKAGES[@]}; do
+        Rscript -e "install.packages('${package}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
     done
 
