@@ -4,7 +4,7 @@ This repository contains the source code for the BARI Singularity image, contain
 
 ## Configuring installed packages
 
-The complete image build process is outlined in the [Singulariy definition file](Singularity). Most likely, you will want to edit the `PACKAGES` array in the `%post` section of the definition file.
+The complete image build process is outlined in the [Singularity definition file](Singularity). Most likely, you will want to edit the `PACKAGES` array in the `%post` section of the definition file.
 
 For full documentation, see the [The Definition File](https://sylabs.io/guides/3.5/user-guide/definition_files.html) section of the syslabs.io documentation site.
 
@@ -28,7 +28,7 @@ You can then access a root shell that will persist changes as follows:
 sudo singularity shell --writable bari-dev/
 ```
 
-Once you are finished prototyping, it is best to edit the definition file, but if you are impatient, you can build an image directly from the temporary sandbox:
+Once you are finished prototyping, it is best to edit the definition file so that future builds will reflect your updated process and you can see if it is working as intended from a clean base image, but if you are impatient, you can build an image directly from the temporary sandbox:
 
 ```bash
 sudo singularity build bari.img bari-dev/
