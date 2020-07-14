@@ -25,14 +25,14 @@ From: fedora:32
 %post
     export R_LIBRARY=/usr/lib64/R/library # path of the global R library
     export RSTUDIO_RPM=rstudio-server-rhel-1.3.959-x86_64.rpm # RStudio version to use
-    export MAKEFLAGS=-j20 # for compiling R packages with multithreading
+    export R_MAKEFLAGS=-j20 # for compiling R packages with multithreading
 
     # list of packages to install
     export PACKAGES=(
-	bit64 corrplot data.table gganimate here Hmisc leaflet lme4 magicfor
-	markovchain plotly questionr RColorBrewer readxl RSQLite scales sf
-	SnowballC stargazer tidytext tidyverse tm viridis wordcloud wrapr
-        writexl
+	bit64 corrplot data.table gganimate here Hmisc hrbrthemes leaflet lme4
+	magicfor markovchain nngeo plotly questionr RColorBrewer readxl RSQLite
+	scales sf SnowballC stargazer tidytext tidyverse tigris tm viridis
+	wordcloud wrapr writexl
     )
 
     echo "updating yum repo and installing basic utilities"
@@ -51,7 +51,7 @@ From: fedora:32
     # missing sqlite development headers (sqlite-devel, introduced in f32) as
     # missing proj. see the discussion here:
     # https://github.com/r-spatial/sf/issues/1369#issuecomment-623003944
-    yum -y install {gdal,geos,libspatialite,proj,sqlite}{,-devel} proj-static proj-datumgrid-*
+    yum -y install {gdal,geos,libspatialite,proj,sqlite}{,-devel}
 
     echo "installing other libraries and development headers"
     # dependencies:
@@ -63,13 +63,19 @@ From: fedora:32
     # * cairo <- gdtools <- hrbrthemes, mapview
     yum -y install {openssl,udunits2,libjpeg-turbo,libcurl,libxml2,cairo}{,-devel}
 
+    echo "installing extras required by R packages"
+    # * google-roboto-condensed-fonts <- hrbrthemes
+    yum -y install google-roboto-condensed-fonts
+
     echo "installing R and R development headers"
     yum -y install R-core{,-devel}
 
     echo "installing binary RPMs for certain R packages"
-    # we install these in hopes that they will bring in any remaining files
-    # that we might need, as well as set up the global site-packages folder
-    yum -y install {R-Rcpp,R-sp}{,-devel} R-rmarkdown
+    # we install these because it is difficult / inconvenient to install from
+    # source, or in hopes that they will bring in any remaining development
+    # headers that we might need, as well as set up the global site-packages
+    # folder
+    yum -y install R-{Rcpp,sp}{,-devel} R-{rmarkdown,V8,rgdal,rgeos}
 
     #echo "installing rstudio"
     #wget https://download2.rstudio.org/server/centos8/x86_64/${RSTUDIO_RPM} # CentOS 8
@@ -77,8 +83,9 @@ From: fedora:32
     #yum -y install ${RSTUDIO_RPM}
     #rm -v ${RSTUDIO_RPM}
 
-    echo "installing R packages"
+    echo "installing R packages from source"
     for package in ${PACKAGES[@]}; do
-        Rscript -e "install.packages('${package}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
+        MAKEFLAGS="$R_MAKEFLAGS" Rscript -e \
+            "install.packages('${package}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
     done
 
