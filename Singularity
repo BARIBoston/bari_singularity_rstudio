@@ -6,13 +6,6 @@
 Bootstrap: docker
 From: fedora:32
 
-#Bootstrap: yum
-#OSVersion: 7
-#MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/os/$basearch/
-#OSVersion: 8
-#MirrorURL: http://mirror.centos.org/centos-%{OSVERSION}/%{OSVERSION}/BaseOS/$basearch/os/
-#Include: yum
-
 %labels
     Maintainer ercas
 
@@ -24,20 +17,32 @@ From: fedora:32
 
 %post
     export R_LIBRARY=/usr/lib64/R/library # path of the global R library
-    export RSTUDIO_RPM=rstudio-server-rhel-1.3.959-x86_64.rpm # RStudio version to use
+    export RSTUDIO_RPM=rstudio-1.3.959-x86_64.rpm # RStudio version to use
     export R_MAKEFLAGS=-j20 # for compiling R packages with multithreading
 
     # list of packages to install
     export PACKAGES=(
-	bit64 corrplot data.table gganimate here Hmisc hrbrthemes leaflet lme4
-	magicfor markovchain nngeo plotly questionr RColorBrewer readxl RSQLite
-	scales sf SnowballC stargazer tidytext tidyverse tigris tm viridis
-	wordcloud wrapr writexl
+        bit64 corrplot data.table gganimate here Hmisc hrbrthemes leaflet lme4
+        magicfor markovchain nngeo plotly questionr RColorBrewer readxl RSQLite
+        scales sf SnowballC stargazer tidytext tidyverse tigris tm viridis
+        wordcloud wrapr writexl
     )
 
     echo "updating yum repo and installing basic utilities"
     yum -y update
     yum -y install wget
+
+    echo "installing rstudio desktop"
+    wget https://download1.rstudio.org/desktop/centos8/x86_64/${RSTUDIO_RPM}
+    yum -y install ${RSTUDIO_RPM}
+    yum -y upgrade # sort of hacky way to install extra rstudio dependencies
+    yum -y install ${RSTUDIO_RPM}
+    rm -v ${RSTUDIO_RPM}
+    mkdir /usr/share/doc/R # rstudio complains and exits if this directory does not exist
+    chmod a+r /usr/share/doc/R
+
+    echo "installing rstudio desktop dependencies"
+    yum -y install {mesa-libGL,libXtst,alsa-lib}-devel qt5
 
     echo "installing devtools"
     yum -y groupinstall "Development Tools"
@@ -77,15 +82,10 @@ From: fedora:32
     # folder
     yum -y install R-{Rcpp,sp}{,-devel} R-{rmarkdown,V8,rgdal,rgeos}
 
-    #echo "installing rstudio"
-    #wget https://download2.rstudio.org/server/centos8/x86_64/${RSTUDIO_RPM} # CentOS 8
-    #wget https://download2.rstudio.org/server/centos6/x86_64/${RSTUDIO_RPM} # CentOS 7 (not 6)
-    #yum -y install ${RSTUDIO_RPM}
-    #rm -v ${RSTUDIO_RPM}
-
     echo "installing R packages from source"
     for package in ${PACKAGES[@]}; do
         MAKEFLAGS="$R_MAKEFLAGS" Rscript -e \
             "install.packages('${package}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
     done
 
+    #echo "installing other applications"
