@@ -23,9 +23,9 @@ From: fedora:32
     # list of packages to install
     export PACKAGES=(
         bit64 corrplot data.table gganimate here Hmisc hrbrthemes leaflet lme4
-        magicfor markovchain nngeo plotly questionr RColorBrewer readxl RSQLite
-        scales sf SnowballC stargazer tidytext tidyverse tigris tm viridis
-        wordcloud wrapr writexl
+        magicfor markovchain nngeo plotly questionr RColorBrewer readxl remoter
+        RSQLite scales sf SnowballC stargazer tidytext tidyverse tigris tm
+        viridis wordcloud wrapr writexl
     )
 
     echo "updating yum repo and installing basic utilities"
@@ -66,7 +66,8 @@ From: fedora:32
     # * libcurl <- httr <- tigris, plotly
     # * libxml2 <- xml2 <- tm
     # * cairo <- gdtools <- hrbrthemes, mapview
-    yum -y install {openssl,udunits2,libjpeg-turbo,libcurl,libxml2,cairo}{,-devel}
+    # * cppzmq-devel <- pbdZMQ <- remoter
+    yum -y install {openssl,udunits2,libjpeg-turbo,libcurl,libxml2,cairo}{,-devel} cppzmq-devel
 
     echo "installing extras required by R packages"
     # * google-roboto-condensed-fonts <- hrbrthemes
@@ -88,4 +89,9 @@ From: fedora:32
             "install.packages('${package}', repos='https://cloud.r-project.org', lib='${R_LIBRARY}')"
     done
 
-    #echo "installing other applications"
+    echo "installing qgis"
+    yum -y install qgis
+    strip -R .note.ABI-tag /lib64/libQt5Core.so.5 # see: https://stackoverflow.com/a/55402240
+
+    echo "installing window manager for OpenOnDemand"
+    yum -y install fluxbox
